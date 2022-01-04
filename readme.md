@@ -1,1 +1,1 @@
-# Get started
+# A Computer aided drug discovery teaching tool
