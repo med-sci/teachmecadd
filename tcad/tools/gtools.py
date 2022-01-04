@@ -1,0 +1,116 @@
+from typing import Any, List, Tuple, Union
+
+import numpy as np
+import torch
+from numpy import ndarray
+from rdkit import Chem
+from rdkit.Chem import Mol
+from torch import LongTensor, Tensor
+from torch_geometric.data import Data
+from torch_geometric.utils import dense_to_sparse
+
+BONDS: List[Union[object, str]] = [
+    Chem.BondType.AROMATIC,
+    Chem.BondType.SINGLE,
+    Chem.BondType.DOUBLE,
+    Chem.BondType.TRIPLE,
+    "other",
+]  # Add more bonds
+
+NUM_FEATURES: int = 6
+
+HYBRIDIZATION: List[Union[object, str]] = [
+    Chem.rdchem.HybridizationType.S,
+    Chem.rdchem.HybridizationType.SP,
+    Chem.rdchem.HybridizationType.SP2,
+    Chem.rdchem.HybridizationType.SP3,
+    Chem.rdchem.HybridizationType.SP3D2,
+    Chem.rdchem.HybridizationType.OTHER,
+    "other",
+]
+
+CHIRAL_TAGS: List[Union[object, str]] = [
+    Chem.rdchem.ChiralType.CHI_UNSPECIFIED,
+    Chem.rdchem.ChiralType.CHI_TETRAHEDRAL_CW,
+    Chem.rdchem.CHI_TETRAHEDRAL_CCW,
+    Chem.rdchem.ChiralType.CHI_OTHER,
+    "other",
+]
+
+ATOMIC_NUMS: List[Union[int, str]] = list(range(1, 119)) + ["other"]
+DEGREES: List[Union[int, str]] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "other"]
+FORMAL_CHARGES: List[Union[int, str]] = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, "other"]
+NUM_HS: List[Union[int, str]] = [0, 1, 2, 3, 4, 5, 6, 7, 8, "other"]
+
+IS_AROMATIC: List[bool] = [True, False]
+
+
+def get_feature_index(feature: Any, features: List[Any]) -> int:
+    if feature in features:
+        return features.index(feature)
+
+    return features[-1]
+
+
+def get_atom_features_dims() -> List[int]:
+    return [
+        len(ATOMIC_NUMS),
+        len(FORMAL_CHARGES),
+        len(NUM_HS),
+        len(IS_AROMATIC),
+        len(HYBRIDIZATION),
+        len(CHIRAL_TAGS),
+    ]
+
+
+def get_edge_index_with_attrs(molecule: Mol) -> Tuple[Tensor]:
+    matrix: ndarray = Chem.GetAdjacencyMatrix(molecule)
+
+    for bond in molecule.GetBonds():
+        i: int = bond.GetBeginAtomIdx()
+        j: int = bond.GetEndAtomIdx()
+        bond_idx = (
+            get_feature_index(bond.GetBondType(), BONDS) + 1
+        )  # prevent zero bonds
+        matrix[i, j] = bond_idx
+        matrix[j, i] = bond_idx
+
+    return dense_to_sparse(torch.tensor(matrix))
+
+
+def get_atoms_feature_matrix(molecule: Mol) -> Tensor:
+    feature_matrix: ndarray = np.zeros((molecule.GetNumAtoms(), NUM_FEATURES))
+
+    for idx, atom in enumerate(molecule.GetAtoms()):
+        atom_feature_vec: ndarray = np.array(
+            [
+                get_feature_index(atom.GetAtomicNum(), ATOMIC_NUMS),
+                get_feature_index(atom.GetFormalCharge(), FORMAL_CHARGES),
+                get_feature_index(atom.GetNumExplicitHs(), NUM_HS),
+                get_feature_index(atom.GetIsAromatic(), IS_AROMATIC),
+                get_feature_index(atom.GetHybridization(), HYBRIDIZATION),
+                get_feature_index(atom.GetChiralTag(), CHIRAL_TAGS),
+            ]
+        )
+        feature_matrix[idx] = atom_feature_vec
+    return LongTensor(feature_matrix)
+
+
+def mol_to_torch_data(molecule: Mol) -> Data:
+    edge_index, edge_attr = get_edge_index_with_attrs(molecule)
+    x = get_atoms_feature_matrix(molecule)
+    return Data(
+        x=x,
+        edge_index=edge_index,
+        edge_attr=edge_attr,
+    )
+
+
+def add_label(graph: Data, label: Any) -> Data:
+    graph.y = Tensor([[label]])
+    return graph
+
+
+def train_test_split(dataset: List, ratio: float) -> Tuple[List]:
+    pointer: int = 1 - round(len(dataset) * ratio)
+    return dataset[:pointer], dataset[pointer:]
