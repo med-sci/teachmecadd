@@ -1,9 +1,3 @@
-# dirs created by script
-data/
-
-#temporary ignore .csv
-*.csv
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

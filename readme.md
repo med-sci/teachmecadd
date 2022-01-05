@@ -1,1 +1,1 @@
-# A Computer aided drug discovery teaching tool
+# A teaching tool for computer aided drug discovery
