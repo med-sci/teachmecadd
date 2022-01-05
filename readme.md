@@ -5,7 +5,7 @@
 ### 1. Clone repo 
 
 ```sh
-git clone ... 
+git clone https://github.com/med-sci/teachmecadd.git
 ```
 ### 2. checkout on branch feature
 
