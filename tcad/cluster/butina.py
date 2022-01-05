@@ -1,7 +1,7 @@
 import pandas as pd
 from rdkit import Chem 
 from rdkit.ML.Cluster import Butina
-from rdkit.Chem import Descriptors, DataStructs, Draw
+from rdkit.Chem import DataStructs, Draw
 from rdkit.Chem import rdFingerprintGenerator
 from rdkit.Chem.rdchem import Mol
 from matplotlib import pyplot as plt
