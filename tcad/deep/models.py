@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch_geometric.nn import global_mean_pool
 from torch_geometric.nn.conv import GCNConv
 
-from tcad.tools.gtools import get_atom_features_dims
+from tcad.tools.nntools import get_atom_features_dims
 
 ATOM_FEATURE_DIMS = get_atom_features_dims()
 
@@ -22,7 +22,7 @@ class AtomEncoder(torch.nn.Module):
 
     def forward(self, x):
         x_embedding = 0
-        
+
         for i in range(x.shape[1]):
             x_embedding += self.atom_embedding_list[i](x[:, i])
 
@@ -103,8 +103,44 @@ class GCN_Graph(torch.nn.Module):
         embed = self.node_encoder(x)
         x = self.gnn_node(embed, edge_index)
         features = self.pool(x, batch)
-        
+
         if return_embeds:
             return features
         out = self.linear(features)
         return self.sigmoid(out)
+
+
+class CNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.conv1 = nn.Conv2d(1, 128, 11, 1)
+        self.pool1 = nn.MaxPool2d(5,stride=1)
+
+        self.conv2 = nn.Conv2d(128, 64, 11, 1)
+        self.pool2 = nn.MaxPool2d(9,stride=1)
+
+        self.fc1 = nn.Linear(17024, 96)
+        self.fc2 = nn.Linear(96, 1)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.pool1(F.relu(x))
+        x = self.pool2(F.relu(self.conv2(x)))
+        x = torch.flatten(x, 1)
+        x = F.relu(self.fc1(x))
+        out = self.fc2(x)
+
+        return out
+
+
+
+
+
+
+
+
+
+
+
+

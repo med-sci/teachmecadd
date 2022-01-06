@@ -1,11 +1,12 @@
-from typing import Any, List, Tuple, Union
+from typing import Any, List, Tuple, Union, Iterable, Set, Dict
 
 import numpy as np
 import torch
 from numpy import ndarray
 from rdkit import Chem
 from rdkit.Chem import Mol
-from torch import LongTensor, Tensor
+from torch import LongTensor, Tensor, FloatTensor
+from torch.utils.data import Dataset
 from torch_geometric.data import Data
 from torch_geometric.utils import dense_to_sparse
 
@@ -114,3 +115,52 @@ def add_label(graph: Data, label: Any) -> Data:
 def train_test_split(dataset: List, ratio: float) -> Tuple[List]:
     pointer: int = 1 - round(len(dataset) * ratio)
     return dataset[:pointer], dataset[pointer:]
+
+
+class SmilesEncoder:
+
+    def __init__(self, smiles: Iterable[str])-> None:
+        self.smiles: Iterable[str] = smiles
+        self._max_dim: int = self.max_dim
+        self._alphabet: Set[str] = self.alphabet
+
+    @property
+    def max_dim(self)->int:
+        return np.max([len(smile) for smile in self.smiles])
+
+    @property
+    def alphabet(self) -> Dict[str, int]:
+        alphabet = set.union(*[set(smile)for smile in self.smiles])
+        return {element:value for value, element in enumerate(alphabet)}
+
+    def _encode_smile(self, smile:str)->ndarray:
+        encode_mat = np.zeros((self._max_dim, len(self._alphabet)), dtype=np.int16)
+
+        for idx, char in enumerate(smile):
+            alphabet_pos = self._alphabet[char]
+            encode_mat[idx, alphabet_pos] = 1
+
+        return encode_mat.reshape(1, *encode_mat.shape)
+
+    def transform(self)->ndarray:
+        encoded_smiles: List[ndarray] = []
+
+        for smile in self.smiles:
+            encoded_smiles.append(self._encode_smile(smile))
+
+        return np.array(encoded_smiles)
+
+
+class SmilesDataSet(Dataset):
+    def __init__(self, smiles: Iterable[str], labels:Iterable[Any])->None:
+        self.smiles = smiles
+        self.labels = labels
+        self.smiles_encoder = SmilesEncoder(self.smiles)
+
+    def __len__(self)->int:
+        return len(self.smiles)
+
+    def __getitem__(self, index: int) -> Tuple[ndarray, Any]:
+        return FloatTensor(self.smiles_encoder._encode_smile(self.smiles[index])), FloatTensor([(self.labels[index])]),
+
+
