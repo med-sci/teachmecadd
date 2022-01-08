@@ -164,3 +164,12 @@ class SmilesDataSet(Dataset):
         return FloatTensor(self.smiles_encoder._encode_smile(self.smiles[index])), FloatTensor([(self.labels[index])]),
 
 
+class FingerprintDataset(Dataset):
+    def __init__(self, fingerprints: ndarray) -> None:
+        self.fingerprints = fingerprints
+    
+    def __len__(self)->int:
+        return len(self.fingerprints)
+
+    def __getitem__(self, index:int) -> ndarray:
+        return FloatTensor(self.fingerprints[index])

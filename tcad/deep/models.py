@@ -1,6 +1,9 @@
+from numpy.core.numeric import indices
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.modules import flatten
+from torch.nn.modules.activation import ReLU
 from torch_geometric.nn import global_mean_pool
 from torch_geometric.nn.conv import GCNConv
 
@@ -113,25 +116,77 @@ class GCN_Graph(torch.nn.Module):
 class CNN(nn.Module):
     def __init__(self):
         super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 128, 11, 1),
+            nn.ReLU(),
+            nn.MaxPool2d(5,stride=1),
+            nn.Conv2d(128, 64, 11, 1),
+            nn.ReLU(),
+            nn.MaxPool2d(9,stride=1)
+        )
 
-        self.conv1 = nn.Conv2d(1, 128, 11, 1)
-        self.pool1 = nn.MaxPool2d(5,stride=1)
+        self.classifier = nn.Sequential(
+            nn.Linear(64, 96),
+            nn.ReLU(),
+            nn.Linear(96, 1)
+        )
 
-        self.conv2 = nn.Conv2d(128, 64, 11, 1)
-        self.pool2 = nn.MaxPool2d(9,stride=1)
 
-        self.fc1 = nn.Linear(17024, 96)
-        self.fc2 = nn.Linear(96, 1)
+    def forward(self, x, encode=False):
+        encoded = self.encoder(x)
+        encoded = F.adaptive_max_pool2d(encoded, output_size= 1)
+        if encode:
+            return encoded.squeeze()
+        flatten=torch.flatten(encoded,1)
+        out = self.classifier(flatten)
+        return out
+
+
+class FingerprintAutoEncoder(nn.Module):
+    def __init__(self):
+        super(FingerprintAutoEncoder, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Linear(2048, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 2),
+        )
+
+        self.decoder = nn.Sequential(
+            nn.Linear(2, 16),
+            nn.ReLU(),
+            nn.Linear(16, 32),
+            nn.ReLU(),
+            nn.Linear(32, 64),
+            nn.ReLU(),
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, 2048),
+            nn.Sigmoid()
+        )
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.pool1(F.relu(x))
-        x = self.pool2(F.relu(self.conv2(x)))
-        x = torch.flatten(x, 1)
-        x = F.relu(self.fc1(x))
-        out = self.fc2(x)
+        encoded = self.encoder(x)
+        decoded = self.decoder(encoded)
+        return decoded
 
-        return out
 
 
 

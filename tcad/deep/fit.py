@@ -1,20 +1,18 @@
 import torch
-from torch.nn import BCELoss
+from torch.nn import BCELoss, MSELoss
 from torch.nn.modules.loss import BCEWithLogitsLoss
 from torch.optim import SGD
-from tqdm import tqdm
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def train_GCN(model, data_loader):
+def train_GCN(model, data_loader, optimizer, criterion):
+    
     for _, batch in enumerate(data_loader):
         batch = batch.to(DEVICE)
-        optimizer = SGD(model.parameters(), lr=0.001)
         optimizer.zero_grad()
         out = model(batch)
-        loss = BCELoss()
-        loss = loss(out, batch.y.float())
+        loss = criterion(out, batch.y.float())
         loss.backward()
         optimizer.step()
 
@@ -26,6 +24,7 @@ def evaluate_GCN(model, data_loader):
     with torch.no_grad():
         correct = 0
         total = 0
+    
         for _, batch in enumerate(data_loader):
             batch = batch.to(DEVICE)
             out = model(batch)
@@ -39,26 +38,28 @@ def evaluate_GCN(model, data_loader):
     return round((correct / total * 100), 3)
 
 
-def train_CNN(model, data_loader):
+def train_CNN(model, data_loader, optimizer, criterion):
+    losses = []
     for _, batch in enumerate(data_loader):
         smiles, labels = batch
         smiles.to(DEVICE)
-        optimizer = SGD(model.parameters(), lr=0.001)
         optimizer.zero_grad()
         out = model(smiles)
-        loss = BCEWithLogitsLoss()
-        loss = loss(out, labels)
+        loss = criterion(out, labels)
         loss.backward()
         optimizer.step()
+        losses.append(loss.item())
 
-    return loss.item()
+    return losses
 
 
 def evaluate_CNN(model, data_loader):
     model.eval()
+   
     with torch.no_grad():
         correct = 0
         total = 0
+   
         for _, batch in enumerate(data_loader):
             smiles, labels = batch
             smiles.to(DEVICE)
@@ -71,3 +72,15 @@ def evaluate_CNN(model, data_loader):
                 total += 1
 
     return round((correct / total * 100), 3)
+
+def train_encoder(model, dataloader, optimizer, criterion):
+
+    for batch in dataloader:
+        out = model(batch.to(DEVICE))
+        loss = criterion(out, batch.to(DEVICE))
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+    return loss.item()
+
+
