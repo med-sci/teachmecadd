@@ -1,7 +1,4 @@
 import torch
-from torch.nn import BCELoss, MSELoss
-from torch.nn.modules.loss import BCEWithLogitsLoss
-from torch.optim import SGD
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

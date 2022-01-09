@@ -2,8 +2,8 @@ from numpy.core.numeric import indices
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.modules import flatten
-from torch.nn.modules.activation import ReLU
+from torch.nn.modules.flatten import Flatten
+from torch.nn.modules.linear import Linear
 from torch_geometric.nn import global_mean_pool
 from torch_geometric.nn.conv import GCNConv
 
@@ -142,44 +142,35 @@ class CNN(nn.Module):
         return out
 
 
-class FingerprintAutoEncoder(nn.Module):
-    def __init__(self):
-        super(FingerprintAutoEncoder, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Linear(2048, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, 512),
-            nn.ReLU(),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 16),
-            nn.ReLU(),
-            nn.Linear(16, 2),
-        )
+class CNNAutoEncoder(nn.Module):
+    def __init__(self, desired_dim:int)->None:
+        super().__init__()
 
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 16, 5, 2),
+            nn.ReLU(),
+            nn.Conv2d(16, 64, 5, 2),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, 3, 2),
+            nn.Flatten(start_dim=1),
+            nn.Linear(4864, 1216),
+            nn.ReLU(), 
+            nn.Linear(1216, 608),
+            nn.ReLU(),
+            nn.Linear(608, desired_dim)
+        )
         self.decoder = nn.Sequential(
-            nn.Linear(2, 16),
+            nn.Linear(desired_dim, 608),
+            nn.ReLU(), 
+            nn.Linear(608, 1216),
             nn.ReLU(),
-            nn.Linear(16, 32),
+            nn.Linear(1216, 4864),
+            nn.Unflatten(1, (128, 19, 2)),
+            nn.ConvTranspose2d(128, 64, 3, 2,output_padding=(0,1)),
             nn.ReLU(),
-            nn.Linear(32, 64),
+            nn.ConvTranspose2d(64, 16, 6, 2),
             nn.ReLU(),
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 256),
-            nn.ReLU(),
-            nn.Linear(256, 512),
-            nn.ReLU(),
-            nn.Linear(512, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, 2048),
-            nn.Sigmoid()
+            nn.ConvTranspose2d(16, 1, 3, 2, output_padding=(0,1)),
         )
 
     def forward(self, x):
@@ -188,6 +179,7 @@ class FingerprintAutoEncoder(nn.Module):
         return decoded
 
 
+        
 
 
 

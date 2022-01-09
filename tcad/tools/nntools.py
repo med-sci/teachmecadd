@@ -152,7 +152,7 @@ class SmilesEncoder:
 
 
 class SmilesDataSet(Dataset):
-    def __init__(self, smiles: Iterable[str], labels:Iterable[Any])->None:
+    def __init__(self, smiles: Iterable[str], labels:Iterable[Any]=None)->None:
         self.smiles = smiles
         self.labels = labels
         self.smiles_encoder = SmilesEncoder(self.smiles)
@@ -161,7 +161,10 @@ class SmilesDataSet(Dataset):
         return len(self.smiles)
 
     def __getitem__(self, index: int) -> Tuple[ndarray, Any]:
-        return FloatTensor(self.smiles_encoder._encode_smile(self.smiles[index])), FloatTensor([(self.labels[index])]),
+        if self.labels:
+            return FloatTensor(self.smiles_encoder._encode_smile(self.smiles[index])), FloatTensor([(self.labels[index])])
+        return FloatTensor(self.smiles_encoder._encode_smile(self.smiles[index]))
+
 
 
 class FingerprintDataset(Dataset):
