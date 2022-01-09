@@ -41,8 +41,8 @@ def train_CNN(model, data_loader, optimizer, criterion):
         smiles, labels = batch
         smiles.to(DEVICE)
         optimizer.zero_grad()
-        out = model(smiles)
-        loss = criterion(out, labels)
+        out = model(smiles).to(DEVICE)
+        loss = criterion(out, labels.to(DEVICE))
         loss.backward()
         optimizer.step()
         losses.append(loss.item())

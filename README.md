@@ -7,19 +7,14 @@
 ```sh
 git clone https://github.com/med-sci/teachmecadd.git
 ```
-### 2. checkout on branch feature
-
-```sh
-git checkout feature 
-```
-### 3. create environment:
+### 2. create environment:
 
 ```sh
 conda env create -f environment.yml
 ```
-### 4. activate:
+### 3. activate:
 
 ```sh
 conda activate teachmecadd
 ```
-### 5. Follow notebooks code from tutorials folder
+### 4. Follow notebooks code from tutorials folder

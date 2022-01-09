@@ -172,9 +172,12 @@ class CNNAutoEncoder(nn.Module):
             nn.ReLU(),
             nn.ConvTranspose2d(16, 1, 3, 2, output_padding=(0,1)),
         )
-
-    def forward(self, x):
+    def forward(self, x, return_embedings = False):
         encoded = self.encoder(x)
+        
+        if return_embedings:
+            return encoded
+        
         decoded = self.decoder(encoded)
         return decoded
 
