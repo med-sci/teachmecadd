@@ -1,8 +1,8 @@
 # A teaching tool for computer aided drug discovery
 
-# Geting started
+# Getting started
 
-### 1. Clone repo 
+### 1. clone repo
 
 ```sh
 git clone https://github.com/med-sci/teachmecadd.git
@@ -17,4 +17,4 @@ conda env create -f environment.yml
 ```sh
 conda activate teachmecadd
 ```
-### 4. Follow notebooks code from tutorials folder
+### 4. follow notebooks code from tutorials folder
