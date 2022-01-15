@@ -1,4 +1,6 @@
 import torch
+import torch.nn.functional as F
+
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -79,5 +81,37 @@ def train_encoder(model, dataloader, optimizer, criterion):
         loss.backward()
         optimizer.step()
     return loss.item()
+
+
+def train_vae(dataloader, model, optimizer, epochs=5):
+    losses = []
+
+    for epoch in range(epochs):
+        
+        for idx, batch in enumerate(dataloader):
+            encoded, z_mean, z_log_var, decoded = model(batch.to(DEVICE))
+            
+            kl_div = -0.5 * torch.sum(1 + z_log_var 
+                                            - z_mean**2 
+                                            - torch.exp(z_log_var), 
+                                            axis=1)
+            
+            batchsize = kl_div.size(0)
+            mse_loss = F.binary_cross_entropy(decoded, batch.to(DEVICE), reduction='none')
+            mse_loss = mse_loss.view(batchsize, -1).sum(axis=1)
+
+            loss = mse_loss.mean() + kl_div.mean()
+
+            optimizer.zero_grad()
+
+            loss.backward()
+            losses.append(loss.item())
+            
+            optimizer.step()
+        
+        if epoch % 10 ==0:
+            print(f"Epoch:{epoch} criterion_loss:{round(mse_loss.mean().item(),5)} KL_loss:{round(kl_div.mean().item(),5)} total_loss: {round(loss.item(),5)}")
+    
+    return losses
 
 

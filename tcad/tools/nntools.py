@@ -117,12 +117,17 @@ def train_test_split(dataset: List, ratio: float) -> Tuple[List]:
     return dataset[:pointer], dataset[pointer:]
 
 
+def sample_from_nd(dim):
+    return torch.randn(dim)
+
+
 class SmilesEncoder:
 
     def __init__(self, smiles: Iterable[str])-> None:
         self.smiles: Iterable[str] = smiles
         self._max_dim: int = self.max_dim
         self._alphabet: Set[str] = self.alphabet
+        self._inverse_alphabet = self.inverse_alphabet
 
     @property
     def max_dim(self)->int:
@@ -133,13 +138,20 @@ class SmilesEncoder:
         alphabet = set.union(*[set(smile)for smile in self.smiles])
         return {element:value for value, element in enumerate(alphabet)}
 
+    @property
+    def inverse_alphabet(self):
+        return {value:key for key, value in self.alphabet.items()}
+
     def _encode_smile(self, smile:str)->ndarray:
         encode_mat = np.zeros((self._max_dim, len(self._alphabet)), dtype=np.int16)
 
         for idx, char in enumerate(smile):
             alphabet_pos = self._alphabet[char]
             encode_mat[idx, alphabet_pos] = 1
-
+        
+        #right-side padding
+        encode_mat = np.concatenate((encode_mat, np.zeros((encode_mat.shape[0],3))), axis=1)
+        
         return encode_mat.reshape(1, *encode_mat.shape)
 
     def transform(self)->ndarray:
@@ -149,6 +161,24 @@ class SmilesEncoder:
             encoded_smiles.append(self._encode_smile(smile))
 
         return np.array(encoded_smiles)
+
+    def _decode_smile(self, array:ndarray)-> str:
+        smile: str=""
+        
+        for row in array:
+            try:
+                char = np.where(row==1)[0][0] #magic numbers
+                smile+=self._inverse_alphabet[char] 
+            except IndexError:
+                break
+        return smile
+    
+    def decode(self, arrays:ndarray)->List[str]:
+        smiles = []
+        
+        for array in arrays:
+            smiles.append(self._decode_smile(array))
+        return smiles
 
 
 class SmilesDataSet(Dataset):
@@ -164,15 +194,3 @@ class SmilesDataSet(Dataset):
         if self.labels:
             return FloatTensor(self.smiles_encoder._encode_smile(self.smiles[index])), FloatTensor([(self.labels[index])])
         return FloatTensor(self.smiles_encoder._encode_smile(self.smiles[index]))
-
-
-
-class FingerprintDataset(Dataset):
-    def __init__(self, fingerprints: ndarray) -> None:
-        self.fingerprints = fingerprints
-    
-    def __len__(self)->int:
-        return len(self.fingerprints)
-
-    def __getitem__(self, index:int) -> ndarray:
-        return FloatTensor(self.fingerprints[index])

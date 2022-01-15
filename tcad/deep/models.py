@@ -11,6 +11,8 @@ from tcad.tools.nntools import get_atom_features_dims
 
 ATOM_FEATURE_DIMS = get_atom_features_dims()
 
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 class AtomEncoder(torch.nn.Module):
     def __init__(self, emb_dim, atom_feature_dims):
@@ -148,30 +150,31 @@ class CNNAutoEncoder(nn.Module):
 
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, 5, 2),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Conv2d(16, 64, 5, 2),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Conv2d(64, 128, 3, 2),
             nn.Flatten(start_dim=1),
-            nn.Linear(4864, 1216),
-            nn.ReLU(), 
-            nn.Linear(1216, 608),
-            nn.ReLU(),
-            nn.Linear(608, desired_dim)
+            nn.Linear(7296, 2400),
+            nn.LeakyReLU(),
+            nn.Linear(2400, 1200),
+            nn.LeakyReLU(),
+            nn.Linear(1200, desired_dim)
         )
         self.decoder = nn.Sequential(
-            nn.Linear(desired_dim, 608),
-            nn.ReLU(), 
-            nn.Linear(608, 1216),
-            nn.ReLU(),
-            nn.Linear(1216, 4864),
-            nn.Unflatten(1, (128, 19, 2)),
-            nn.ConvTranspose2d(128, 64, 3, 2,output_padding=(0,1)),
-            nn.ReLU(),
+           nn.Linear(desired_dim,1200),
+            nn.LeakyReLU(),
+            nn.Linear(1200, 2400),
+            nn.LeakyReLU(),
+            nn.Linear(2400, 7296),
+            nn.Unflatten(1, (128, 19, 3)),
+            nn.ConvTranspose2d(128, 64, 3, 2),
+            nn.LeakyReLU(),
             nn.ConvTranspose2d(64, 16, 6, 2),
-            nn.ReLU(),
-            nn.ConvTranspose2d(16, 1, 3, 2, output_padding=(0,1)),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(16, 1, 3, 2),
         )
+    
     def forward(self, x, return_embedings = False):
         encoded = self.encoder(x)
         
@@ -183,11 +186,51 @@ class CNNAutoEncoder(nn.Module):
 
 
         
+class VaeCnn(nn.Module):
+    def __init__(self, desired_dim:int)->None:
+        super().__init__()
 
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 16, 5, 2),
+            nn.LeakyReLU(),
+            nn.Conv2d(16, 64, 5, 2),
+            nn.LeakyReLU(),
+            nn.Conv2d(64, 128, 3, 2),
+            nn.Flatten(start_dim=1),
+            nn.Linear(7296, 2400),
+            nn.LeakyReLU(),
+            nn.Linear(2400, 1200),
+        )
 
+        self.z_mean = torch.nn.Linear(1200, desired_dim)
+        self.z_log_var = torch.nn.Linear(1200, desired_dim)
+        
+        self.decoder = nn.Sequential(
+            nn.Linear(desired_dim,1200),
+            nn.LeakyReLU(),
+            nn.Linear(1200, 2400),
+            nn.LeakyReLU(),
+            nn.Linear(2400, 7296),
+            nn.Unflatten(1, (128, 19, 3)),
+            nn.ConvTranspose2d(128, 64, 3, 2),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(64, 16, 6, 2),
+            nn.LeakyReLU(),
+            nn.ConvTranspose2d(16, 1, 3, 2),
+            nn.Sigmoid()
+        )
 
-
-
+    def reparameterize(self, z_mean, z_log_var):
+        eps = torch.randn(z_mean.size(0), z_mean.size(1)).to(DEVICE)
+        z = z_mean + eps * torch.exp(z_log_var/2.) 
+        return z
+    
+    def forward(self, x):
+        x = self.encoder(x)
+        z_mean, z_log_var = self.z_mean(x), self.z_log_var(x)
+        encoded = self.reparameterize(z_mean, z_log_var)
+        decoded = self.decoder(encoded)
+        return encoded, z_mean, z_log_var, decoded
 
 
 
