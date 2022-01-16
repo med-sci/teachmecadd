@@ -89,3 +89,12 @@ def preprocess(data: DataFrame, *args: Tuple[str]) -> DataFrame:
 
 def to_log_p(array: Sequence[float]) -> Sequence[float]:
     return -np.log10(np.array(array) * 10 ** -9)
+
+
+def check_smile(smile):
+    mol = Chem.MolFromSmiles(smile)
+    
+    if mol == None:
+        return "Not Valid"
+    
+    return "Valid"

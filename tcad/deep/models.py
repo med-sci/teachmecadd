@@ -233,6 +233,49 @@ class VaeCnn(nn.Module):
         return encoded, z_mean, z_log_var, decoded
 
 
+class GAN(nn.Module):
+    def __init__(self, latent_dim):
+        self.latent_dim = latent_dim
+        
+        super().__init__()
+
+        self.discriminator = nn.Sequential(
+            nn.Conv2d(1, 16, 5, 2),
+            nn.LeakyReLU(),
+            nn.Conv2d(16, 64, 5, 2),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(64),
+            nn.Conv2d(64, 128, 3, 2),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(128),
+            nn.Conv2d(128, 256, 3, 2),
+            nn.Flatten(start_dim=1),
+            nn.Linear(2304,1)
+        )
+
+        self.generator = nn.Sequential(
+            nn.Linear(latent_dim,2400),
+            nn.LeakyReLU(),
+            nn.Linear(2400, 7296),
+            nn.Unflatten(1, (128, 19, 3)),
+            nn.ConvTranspose2d(128, 64, 3, 2),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(64),
+            nn.ConvTranspose2d(64, 16, 6, 2),
+            nn.LeakyReLU(),
+            nn.BatchNorm2d(16),
+            nn.ConvTranspose2d(16, 1, 3, 2),
+            nn.Sigmoid()
+        )
+
+    def discriminator_forward(self, smile):
+        return self.discriminator(smile)
+
+    def generator_forward(self, array):
+        return self.generator(array)
+
+    
+
 
 
 

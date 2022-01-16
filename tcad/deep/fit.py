@@ -115,3 +115,62 @@ def train_vae(dataloader, model, optimizer, epochs=5):
     return losses
 
 
+def train_gan(dataloader, model, optimizer_gen, optimizer_discr, epochs=5):
+    gen_losses = []
+    discr_losses = []
+    
+    criterion = torch.nn.BCEWithLogitsLoss()
+    
+    for epoch in range(epochs):
+
+        for batch in dataloader:
+
+            batch_size = batch.shape[0]
+            
+            real_images = batch.to(DEVICE)
+            real_labels = torch.ones(batch_size, device=DEVICE)
+            
+            noise = torch.randn(batch_size, model.latent_dim, device=DEVICE)
+
+            fake_images = model.generator_forward(noise)
+            fake_labels = torch.zeros(batch_size, device=DEVICE)
+            flipped_fake_labels = real_labels
+
+            #train discriminator
+            optimizer_discr.zero_grad()
+
+            discr_pred_real = model.discriminator_forward(real_images).view(-1)
+            real_loss = criterion(discr_pred_real, real_labels)
+
+            discr_pred_fake = model.discriminator_forward(fake_images.detach()).view(-1)
+            fake_loss = criterion(discr_pred_fake, fake_labels)
+
+            discr_loss = 0.5*(real_loss+fake_loss)
+            discr_losses.append(discr_loss)
+            discr_loss.backward()
+
+            optimizer_discr.step()
+
+            #train generator
+            optimizer_gen.zero_grad()
+            
+            discr_pred_fake = model.discriminator_forward(fake_images).view(-1)
+            
+            gener_loss = criterion(discr_pred_fake, flipped_fake_labels)
+            gen_losses.append(gener_loss)
+            gener_loss.backward()
+
+            optimizer_gen.step()
+        
+        if epoch % 10 ==0:
+            print(f"Epoch: {epoch} Discriminator loss: {discr_loss} Generator loss: {gener_loss}")
+        
+
+
+
+
+
+
+
+
+
