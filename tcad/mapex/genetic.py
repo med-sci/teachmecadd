@@ -1,14 +1,18 @@
+#TODO keboard interrupt
+
 from rdkit import Chem
 from rdkit.Chem import AllChem, rdMolDescriptors, SDWriter
 import random
-from loguru import logger
 from statistics import stdev
 from statistics import mean
 from rdkit import RDLogger
+from datetime import datetime
 
 lg = RDLogger.logger()
-lg.setLevel(RDLogger.CRITICAL) 
+lg.setLevel(RDLogger.CRITICAL)
 
+def log(message):
+    print(f"{datetime.utcnow()} | INFO | {message}")
 
 class GA:
     def __init__(
@@ -37,11 +41,12 @@ class GA:
         self._MMFFs = self._MMFF_props
         self._Crippens = self._crippen_contribs
         self._population = self.__population
+        self.RMSDs = []
 
 
     def _create_confs(self):
         mols = []
-        logger.info("Generating conformations..",)
+        log("Generating conformations..",)
 
         for smile in self._smiles:
             mol = Chem.MolFromSmiles(smile)
@@ -49,7 +54,7 @@ class GA:
             _ = AllChem.EmbedMultipleConfs(mol_hs, self._nconfs)
             mols.append(Chem.RemoveHs(mol_hs))
 
-        logger.info("Done..")
+        log("Done..")
         return mols
 
     class _Chromosome:
@@ -120,12 +125,11 @@ class GA:
                         refCid=chromosome.chromosome[0],
                     )
                 rmsd = o3a.Align()
+                self.RMSDs.append(rmsd)
                 matches = o3a.Matches()
-                score = (len(matches) / ref.GetNumAtoms()) * 100 + min(
-                    (rmsd / 0.04) * 100, 100
-                )
+                score = (len(matches) / ref.GetNumAtoms())
                 scores.append(score)
-            total = round((mean(scores) - stdev(scores)), 2)
+            total = mean(scores)
             chromosome.score = total
             return chromosome
 
@@ -172,7 +176,7 @@ class GA:
             self._cache_population(population)
 
             if self.verbose and gen % logg_iter==0:
-                logger.info(f'Best chromosome score is: {population[0].score}')
+                log(f'Best chromosome score is: {round(population[0].score, 3)} | run {gen+1}')
 
             population = self.__crossover(population)
             population = [population[0]] + [
@@ -184,7 +188,8 @@ class GA:
         population = self.__order_population(population)
 
         if self.verbose:
-            logger.info(f'Best chromosome score is: {population[0].score}')
+            log(f'Best chromosome score is: {round(population[0].score, 3)} | run {gen+1}')
+
         self.population = population
         self.best_chromosome = population[0].chromosome
 
