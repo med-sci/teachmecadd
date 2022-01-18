@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import numpy as np
 
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -115,11 +116,18 @@ def train_vae(dataloader, model, optimizer, epochs=5):
     return losses
 
 
-def train_gan(dataloader, model, optimizer_gen, optimizer_discr, epochs=5):
+def train_gan(dataloader, model, optimizer_gen, optimizer_discr, loss_func="BCE", epochs=5, ):
     gen_losses = []
     discr_losses = []
     
-    criterion = torch.nn.BCEWithLogitsLoss()
+    if loss_func=="BCE":
+        criterion = F.binary_cross_entropy_with_logits
+    
+    elif loss_func=="wasserstein":
+        def criterion(y_pred, y_true):
+            return -torch.mean(y_pred * y_true)
+    else:
+        raise ValueError('Only BCE and wasserstein losses are supported')
     
     for epoch in range(epochs):
 
@@ -128,12 +136,16 @@ def train_gan(dataloader, model, optimizer_gen, optimizer_discr, epochs=5):
             batch_size = batch.shape[0]
             
             real_images = batch.to(DEVICE)
-            real_labels = torch.ones(batch_size, device=DEVICE)
+            real_labels = torch.tensor([np.random.choice(np.linspace(0.7, 1.2, 10)) for _ in range(batch_size)], device=DEVICE) #add label smoothing
             
             noise = torch.randn(batch_size, model.latent_dim, device=DEVICE)
 
             fake_images = model.generator_forward(noise)
-            fake_labels = torch.zeros(batch_size, device=DEVICE)
+            
+            if loss_func == 'BCE':
+                fake_labels = torch.tensor([np.random.choice(np.linspace(0., .3, 10)) for _ in range(batch_size)], device=DEVICE)
+            else:
+                fake_labels = torch.tensor([np.random.choice(np.linspace(-1.2, -0.7,  10)) for _ in range(batch_size)], device=DEVICE)
             flipped_fake_labels = real_labels
 
             #train discriminator
@@ -150,6 +162,10 @@ def train_gan(dataloader, model, optimizer_gen, optimizer_discr, epochs=5):
             discr_loss.backward()
 
             optimizer_discr.step()
+
+            if loss_func == 'wasserstein':
+                for p in model.discriminator.parameters():
+                    p.data.clamp_(-0.01, 0.01)
 
             #train generator
             optimizer_gen.zero_grad()

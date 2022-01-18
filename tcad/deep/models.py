@@ -265,8 +265,7 @@ class GAN(nn.Module):
             nn.LeakyReLU(),
             nn.BatchNorm2d(16),
             nn.ConvTranspose2d(16, 1, 3, 2),
-            nn.Sigmoid()
-        )
+        ) 
 
     def discriminator_forward(self, smile):
         return self.discriminator(smile)
