@@ -123,11 +123,12 @@ def sample_from_nd(dim):
 
 class SmilesEncoder:
 
-    def __init__(self, smiles: Iterable[str])-> None:
+    def __init__(self, smiles: Iterable[str], gan: bool=False)-> None:
         self.smiles: Iterable[str] = smiles
         self._max_dim: int = self.max_dim
         self._alphabet: Set[str] = self.alphabet
         self._inverse_alphabet = self.inverse_alphabet
+        self.gan = gan 
 
     @property
     def max_dim(self)->int:
@@ -143,14 +144,20 @@ class SmilesEncoder:
         return {value:key for key, value in self.alphabet.items()}
 
     def _encode_smile(self, smile:str)->ndarray:
-        encode_mat = np.zeros((self._max_dim, len(self._alphabet)), dtype=np.int16)
+        if self.gan:
+            encode_mat = -np.ones((self._max_dim, len(self._alphabet)), dtype=np.int16)
+        else:
+            encode_mat = np.zeros((self._max_dim, len(self._alphabet)), dtype=np.int16)
 
         for idx, char in enumerate(smile):
             alphabet_pos = self._alphabet[char]
             encode_mat[idx, alphabet_pos] = 1
         
         #right-side padding
-        encode_mat = np.concatenate((encode_mat, np.zeros((encode_mat.shape[0],3))), axis=1)
+        if self.gan:
+            encode_mat = np.concatenate((encode_mat, -np.ones((encode_mat.shape[0],3))), axis=1)
+        else:
+            encode_mat = np.concatenate((encode_mat, np.zeros((encode_mat.shape[0],3))), axis=1)
         
         return encode_mat.reshape(1, *encode_mat.shape)
 
@@ -182,10 +189,10 @@ class SmilesEncoder:
 
 
 class SmilesDataSet(Dataset):
-    def __init__(self, smiles: Iterable[str], labels:Iterable[Any]=None)->None:
+    def __init__(self, smiles: Iterable[str], labels:Iterable[Any]=None, gan=False)->None:
         self.smiles = smiles
         self.labels = labels
-        self.smiles_encoder = SmilesEncoder(self.smiles)
+        self.smiles_encoder = SmilesEncoder(self.smiles, gan)
 
     def __len__(self)->int:
         return len(self.smiles)
