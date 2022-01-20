@@ -76,7 +76,7 @@ def get_edge_index_with_attrs(molecule: Mol) -> Tuple[Tensor]:
         matrix[i, j] = bond_idx
         matrix[j, i] = bond_idx
 
-    return dense_to_sparse(torch.tensor(matrix))
+    return dense_to_sparse(torch.tensor(matrix, dtype=torch.int64))
 
 
 def get_atoms_feature_matrix(molecule: Mol) -> Tensor:
