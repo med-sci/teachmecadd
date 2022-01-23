@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from numpy import ndarray
 from rdkit import Chem
-from rdkit.Chem import Mol
+from rdkit.Chem import Mol, AllChem
 from torch import LongTensor, Tensor, FloatTensor
 from torch.utils.data import Dataset
 from torch_geometric.data import Data
@@ -109,8 +109,7 @@ def mol_to_torch_data(molecule: Mol) -> Data:
 
 def add_label(graph: Data, label: Any) -> Data:
     graph.y = Tensor([[label]])
-    return graph
-
+    return graph #?
 
 def train_test_split(dataset: List, ratio: float) -> Tuple[List]:
     pointer: int = 1 - round(len(dataset) * ratio)
@@ -128,7 +127,7 @@ class SmilesEncoder:
         self._max_dim: int = self.max_dim
         self._alphabet: Set[str] = self.alphabet
         self._inverse_alphabet = self.inverse_alphabet
-        self.gan = gan 
+        self.gan = gan
 
     @property
     def max_dim(self)->int:
@@ -152,13 +151,13 @@ class SmilesEncoder:
         for idx, char in enumerate(smile):
             alphabet_pos = self._alphabet[char]
             encode_mat[idx, alphabet_pos] = 1
-        
+
         #right-side padding
         if self.gan:
             encode_mat = np.concatenate((encode_mat, -np.ones((encode_mat.shape[0],3))), axis=1)
         else:
             encode_mat = np.concatenate((encode_mat, np.zeros((encode_mat.shape[0],3))), axis=1)
-        
+
         return encode_mat.reshape(1, *encode_mat.shape)
 
     def transform(self)->ndarray:
@@ -171,18 +170,18 @@ class SmilesEncoder:
 
     def _decode_smile(self, array:ndarray)-> str:
         smile: str=""
-        
+
         for row in array:
             try:
                 char = np.where(row==1)[0][0] #magic numbers
-                smile+=self._inverse_alphabet[char] 
+                smile+=self._inverse_alphabet[char]
             except IndexError:
                 break
         return smile
-    
+
     def decode(self, arrays:ndarray)->List[str]:
         smiles = []
-        
+
         for array in arrays:
             smiles.append(self._decode_smile(array))
         return smiles
