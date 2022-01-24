@@ -1,11 +1,13 @@
+from importlib_metadata import re
 from numpy.core.numeric import indices
+from sklearn import linear_model
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.modules.flatten import Flatten
 from torch.nn.modules.linear import Linear
-from torch_geometric.nn import global_mean_pool
-from torch_geometric.nn.conv import GCNConv
+from torch_geometric.nn import Set2Set, BatchNorm
+from torch_geometric.nn.conv import GATConv, GCNConv
 
 from tcad.tools.nntools import get_atom_features_dims
 
@@ -34,84 +36,51 @@ class AtomEncoder(torch.nn.Module):
         return x_embedding
 
 
-class GCN(nn.Module):
-    def __init__(
-        self, input_dim, hidden_dim, output_dim, num_layers, dropout, return_embeds=True
-    ):
-        super(GCN, self).__init__()
-
-        self.convs = self.convs = torch.nn.ModuleList(
-            [GCNConv(in_channels=input_dim, out_channels=hidden_dim)]
-            + [
-                GCNConv(in_channels=hidden_dim, out_channels=hidden_dim)
-                for _ in range(num_layers - 2)
-            ]
-            + [GCNConv(in_channels=hidden_dim, out_channels=output_dim)]
-        )
-        self.bns = torch.nn.ModuleList(
-            [
-                torch.nn.BatchNorm1d(num_features=hidden_dim)
-                for _ in range(num_layers - 1)
-            ]
-        )
-
-        self.sigmoid = torch.nn.Sigmoid()
-        self.dropout = dropout
-        self.return_embeds = return_embeds
-
-    def reset_parameters(self):
-        for conv in self.convs:
-            conv.reset_parameters()
-
-        for bn in self.bns:
-            bn.reset_parameters()
-
-    def forward(self, x, adj_t):
-        out = None
-
-        for conv, bn in zip(self.convs[:-1], self.bns):
-            x1 = F.relu(bn(conv(x, adj_t)))
-
-            if self.training:
-                x1 = F.dropout(x1, p=self.dropout)
-            x = x1
-        x = self.convs[-1](x, adj_t)
-        out = x if self.return_embeds else self.sigmoid(x)
-
-        return out
-
-
-class GCN_Graph(torch.nn.Module):
-    def __init__(self, hidden_dim, output_dim, num_layers, dropout):
+class GCN_Graph(nn.Module):
+    def __init__(self, hidden_dim, encode_dim):
         super(GCN_Graph, self).__init__()
 
         self.node_encoder = AtomEncoder(hidden_dim, ATOM_FEATURE_DIMS)
 
-        self.gnn_node = GCN(
-            hidden_dim, hidden_dim, hidden_dim, num_layers, dropout, return_embeds=True
-        )
-
-        self.pool = global_mean_pool
-        self.linear = torch.nn.Linear(hidden_dim, output_dim)
+        self.conv1 = GCNConv(hidden_dim, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, hidden_dim)
+        self.conv3 = GCNConv(hidden_dim, hidden_dim)
+        
+        self.bn = BatchNorm(hidden_dim)
+        
+        self.pool = Set2Set(hidden_dim, processing_steps=4, num_layers=1)
+        
+        self.linear1 = torch.nn.Linear(hidden_dim*2, encode_dim)
+        self.linear2 = torch.nn.Linear(encode_dim, 1)
+        
         self.sigmoid = nn.Sigmoid()
 
-    def reset_parameters(self):
-        self.gnn_node.reset_parameters()
-        self.linear.reset_parameters()
-
     def forward(self, batched_data, return_embeds=False):
-        x, edge_index, batch = (
+        x, edge_index, edge_attr, batch = (
             batched_data.x,
             batched_data.edge_index,
+            batched_data.edge_attr,
             batched_data.batch,
         )
+
         embed = self.node_encoder(x)
-        x = self.gnn_node(embed, edge_index)
-        features = self.pool(x, batch)
+        
+        out = F.relu(self.conv1(embed, edge_index, ))
+        out = self.bn(out)
+        
+        out = F.relu(self.conv2(out, edge_index, ))
+        out = self.bn(out)
+        
+        out = self.conv3(out, edge_index,)
+        
+        out = self.pool(out, batch)
 
         if return_embeds:
-            return features
-        out = self.linear(features)
+            return self.linear1(out)
+        
+        out = self.linear1(out)
+        out = self.linear2(out)
+        
         return self.sigmoid(out)
 
 
@@ -119,28 +88,30 @@ class CNN(nn.Module):
     def __init__(self):
         super().__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(1, 128, 11, 1),
-            nn.ReLU(),
-            nn.MaxPool2d(5,stride=1),
-            nn.Conv2d(128, 64, 11, 1),
-            nn.ReLU(),
-            nn.MaxPool2d(9,stride=1)
+            nn.Conv2d(1, 16, 5, 2),
+            nn.LeakyReLU(),
+            nn.Conv2d(16, 64, 5, 2),
+            nn.LeakyReLU(),
+            nn.Conv2d(64, 128, 3, 2),
+            nn.Flatten(start_dim=1),
+            nn.Linear(7296, 2400),
         )
-
         self.classifier = nn.Sequential(
-            nn.Linear(64, 96),
+            nn.Linear(2400, 512),
             nn.ReLU(),
-            nn.Linear(96, 1)
+            nn.Linear(512, 1),
+            nn.Sigmoid()
         )
 
 
-    def forward(self, x, encode=False):
+    def forward(self, x, return_embeds=False):
         encoded = self.encoder(x)
-        encoded = F.adaptive_max_pool2d(encoded, output_size= 1)
-        if encode:
-            return encoded.squeeze()
-        flatten=torch.flatten(encoded,1)
-        out = self.classifier(flatten)
+        
+        if return_embeds:
+            return encoded
+        
+        out = self.classifier(encoded)
+        
         return out
 
 

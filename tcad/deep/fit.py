@@ -1,12 +1,14 @@
 import torch
 import torch.nn.functional as F
 import numpy as np
-
+from sklearn.metrics import classification_report, confusion_matrix
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def train_GCN(model, data_loader, optimizer, criterion):
+    model.train()
+    model.to(DEVICE)
     
     for _, batch in enumerate(data_loader):
         batch = batch.to(DEVICE)
@@ -21,25 +23,24 @@ def train_GCN(model, data_loader, optimizer, criterion):
 
 def evaluate_GCN(model, data_loader):
     model.eval()
-    with torch.no_grad():
-        correct = 0
-        total = 0
     
-        for _, batch in enumerate(data_loader):
+    with torch.no_grad():
+        y_pred = []
+        y_true = []
+    
+        for batch in data_loader:
             batch = batch.to(DEVICE)
             out = model(batch)
+    
+            y_pred.extend([torch.round(pred).item() for pred in out])
+            y_true.extend([y.item() for y in batch.y])
 
-            for idx, pred in enumerate(out):
-
-                if torch.round(pred) == batch.y[idx]:
-                    correct += 1
-                total += 1
-
-    return round((correct / total * 100), 3)
+    return classification_report(y_true, y_pred), confusion_matrix(y_true, y_pred)
 
 
 def train_CNN(model, data_loader, optimizer, criterion):
     losses = []
+    
     for _, batch in enumerate(data_loader):
         smiles, labels = batch
         smiles.to(DEVICE)
@@ -48,30 +49,30 @@ def train_CNN(model, data_loader, optimizer, criterion):
         loss = criterion(out, labels.to(DEVICE))
         loss.backward()
         optimizer.step()
-        losses.append(loss.item())
+    
+    losses.append(loss.item())
 
     return losses
 
 
 def evaluate_CNN(model, data_loader):
     model.eval()
+    model.to(DEVICE)
    
     with torch.no_grad():
-        correct = 0
-        total = 0
-   
-        for _, batch in enumerate(data_loader):
-            smiles, labels = batch
-            smiles.to(DEVICE)
-            out = model(smiles)
 
-            for idx, pred in enumerate(out):
+        y_pred = []
+        y_true = []
+    
+        for batch, labels in data_loader:
+            batch = batch.to(DEVICE)
+            out = model(batch)
+    
+            y_pred.extend([torch.round(pred).item() for pred in out])
+            y_true.extend([label.item() for label in labels])
 
-                if torch.round(pred) == labels[idx]:
-                    correct += 1
-                total += 1
+    return classification_report(y_true, y_pred), confusion_matrix(y_true, y_pred)
 
-    return round((correct / total * 100), 3)
 
 def train_encoder(model, dataloader, optimizer, criterion):
 
