@@ -101,7 +101,7 @@ dependencies:
   - numpy-base=1.21.2=py39h79a1101_0
   - olefile=0.46=pyh9f0ad1d_1
   - openh264=2.1.1=h4ff587b_0
-  - openssl=1.1.1l=h7f8727e_0
+  - openssl=1.1.1m=h7f8727e_0
   - packaging=21.3=pyhd8ed1ab_0
   - pandas=1.2.5=py39hde0f152_0
   - pandocfilters=1.5.0=pyhd8ed1ab_0
@@ -182,3 +182,13 @@ dependencies:
   - zipp=3.6.0=pyhd8ed1ab_0
   - zlib=1.2.11=h7f8727e_4
   - zstd=1.4.9=ha95c52a_0
+  - pip:
+    - black==21.12b0
+    - click==8.0.3
+    - isort==5.10.1
+    - mypy-extensions==0.4.3
+    - pathspec==0.9.0
+    - platformdirs==2.4.1
+    - py3dmol==1.8.0
+    - seaborn==0.11.2
+    - tomli==1.2.3
