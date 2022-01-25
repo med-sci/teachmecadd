@@ -1,16 +1,16 @@
-from sklearn import cluster
-from rdkit.Chem import ChemicalFeatures
 import math
-import numpy as np
 import os
-from rdkit import RDConfig
-import py3Dmol
 
+import numpy as np
+import py3Dmol
+from rdkit import RDConfig
+from rdkit.Chem import ChemicalFeatures
+from sklearn import cluster
 
 
 class Pharmacophore:
     def __init__(self, mol, gene):
-        self._fdef = os.path.join(RDConfig.RDDataDir,'BaseFeatures.fdef')
+        self._fdef = os.path.join(RDConfig.RDDataDir, "BaseFeatures.fdef")
         self._mol = mol
         self._gene = gene
         self._factory = ChemicalFeatures.BuildFeatureFactory(self._fdef)
@@ -20,16 +20,22 @@ class Pharmacophore:
     def _features(self):
         mol = self._mol
         acceptors = [
-            list(f.GetPos(confId = self._gene))
-            for f in self._factory.GetFeaturesForMol(mol, includeOnly="Acceptor", confId=self._gene)
+            list(f.GetPos(confId=self._gene))
+            for f in self._factory.GetFeaturesForMol(
+                mol, includeOnly="Acceptor", confId=self._gene
+            )
         ]
         donors = [
-            list(f.GetPos(confId = self._gene))
-            for f in self._factory.GetFeaturesForMol(mol, includeOnly="Donor", confId=self._gene)
+            list(f.GetPos(confId=self._gene))
+            for f in self._factory.GetFeaturesForMol(
+                mol, includeOnly="Donor", confId=self._gene
+            )
         ]
         hydrophobics = [
-            list(f.GetPos(confId = self._gene))
-            for f in self._factory.GetFeaturesForMol(mol, includeOnly="Hydrophobe", confId=self._gene)
+            list(f.GetPos(confId=self._gene))
+            for f in self._factory.GetFeaturesForMol(
+                mol, includeOnly="Hydrophobe", confId=self._gene
+            )
         ]
         return acceptors, donors, hydrophobics
 
@@ -38,7 +44,9 @@ class PharmComplex:
     def __init__(self, molecules, chromosome):
         self.molecules = molecules
         self.chromosome = chromosome
-        self._p_list = [Pharmacophore(m, g) for m, g in zip(self.molecules, self.chromosome)]
+        self._p_list = [
+            Pharmacophore(m, g) for m, g in zip(self.molecules, self.chromosome)
+        ]
         self._feat_dict = self._features
         self._coords = {}
 
@@ -114,32 +122,46 @@ class PharmComplex:
         self._coords = coords
 
     def show(self, mol_blocks, coords):
-        xyzview = py3Dmol.view(width=1000,height=400)
+        xyzview = py3Dmol.view(width=1000, height=400)
 
         for mol_block in mol_blocks:
             xyzview.addModel(mol_block)
 
-        xyzview.setStyle({'stick':{}})
-        xyzview.setBackgroundColor('0xeeeeee')
+        xyzview.setStyle({"stick": {}})
+        xyzview.setBackgroundColor("0xeeeeee")
 
         for key, value in coords.items():
-                radius = 1.25
-                color = "purple"
-                label = "Acceptor"
+            radius = 1.25
+            color = "purple"
+            label = "Acceptor"
 
-                if key == "Donors":
-                    radius = 1
-                    color ="blue"
-                    label = "Donor"
+            if key == "Donors":
+                radius = 1
+                color = "blue"
+                label = "Donor"
 
-                if key == "Hydrophobics":
-                    radius = 0.75
-                    color ="gray"
-                    label = "Hydrophobic"
+            if key == "Hydrophobics":
+                radius = 0.75
+                color = "gray"
+                label = "Hydrophobic"
 
-                for coord_set in value:
-                    center = {'x':coord_set[0],'y':coord_set[1],'z':coord_set[2]}
-                    xyzview.addSphere({'radius':radius, 'color':color, 'center':center, "wireframe":True})
-                    xyzview.addLabel(label, {"position": center, "backgroundColor": color, "backgroundOpacity":0.8})
+            for coord_set in value:
+                center = {"x": coord_set[0], "y": coord_set[1], "z": coord_set[2]}
+                xyzview.addSphere(
+                    {
+                        "radius": radius,
+                        "color": color,
+                        "center": center,
+                        "wireframe": True,
+                    }
+                )
+                xyzview.addLabel(
+                    label,
+                    {
+                        "position": center,
+                        "backgroundColor": color,
+                        "backgroundOpacity": 0.8,
+                    },
+                )
 
         return xyzview

@@ -93,8 +93,8 @@ def to_log_p(array: Sequence[float]) -> Sequence[float]:
 
 def check_smile(smile):
     mol = Chem.MolFromSmiles(smile)
-    
+
     if mol == None:
         return "Not Valid"
-    
+
     return "Valid"

@@ -1,15 +1,16 @@
-from rdkit import Chem
-from rdkit.Chem import Descriptors, Lipinski, Crippen
-import pandas as pd
-import numpy as np
-from statistics import mean, stdev
-import matplotlib.pyplot as plt
-from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
-from rdkit.Chem import Draw
 import os
+from statistics import mean, stdev
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from rdkit import Chem
+from rdkit.Chem import Crippen, Descriptors, Draw, Lipinski
+from rdkit.Chem.FilterCatalog import FilterCatalog, FilterCatalogParams
 
 LABELS = "Molecular_weight Acceptors Donors LogP"
 UNWANTED_PATH = "../tcad/adme/unwanted.txt"
+
 
 class LipinskiCalc:
     def __init__(self, smiles):
@@ -122,16 +123,13 @@ class PAINS:
             entry = catalog.GetFirstMatch(mol)
 
             if entry is not None:
-                matches.append({
-                    'smiles': s,
-                    'pains': entry.GetDescription()
-                })
+                matches.append({"smiles": s, "pains": entry.GetDescription()})
                 pains.append(s)
         self._pains = pains
 
         if len(matches) == 0:
 
-            return 'No pains found'
+            return "No pains found"
         else:
 
             return pd.DataFrame.from_dict(matches)
@@ -152,7 +150,7 @@ class UnwantedSearcher:
     def _unwanted(self):
         unwanted = {}
 
-        with open(UNWANTED_PATH, 'r') as f:
+        with open(UNWANTED_PATH, "r") as f:
 
             for line in f.readlines():
                 unwanted[line.split()[0]] = line.split()[1]
@@ -169,13 +167,7 @@ class UnwantedSearcher:
             for name, smarts in self.unwanted_subs.items():
 
                 if mol.HasSubstructMatch(Chem.MolFromSmarts(smarts)):
-                    matches.append(
-                        {
-                            'smiles': smile,
-                            'name': name,
-                            'smarts': smarts
-                        }
-                    )
+                    matches.append({"smiles": smile, "name": name, "smarts": smarts})
                     clear = False
             if clear:
                 clean.append(smile)
@@ -188,8 +180,10 @@ class UnwantedSearcher:
         names = []
 
         for i in u_subs:
-            mol = Chem.MolFromSmiles(i['smiles'])
-            matches.append(mol.GetSubstructMatch(Chem.MolFromSmarts(i['smarts'])))
-            names.append(i['name'])
+            mol = Chem.MolFromSmiles(i["smiles"])
+            matches.append(mol.GetSubstructMatch(Chem.MolFromSmarts(i["smarts"])))
+            names.append(i["name"])
             mols.append(mol)
-        return Draw.MolsToGridImage(mols, highlightAtomLists=matches, legends=names, molsPerRow=5)
+        return Draw.MolsToGridImage(
+            mols, highlightAtomLists=matches, legends=names, molsPerRow=5
+        )
